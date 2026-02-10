@@ -1,10 +1,9 @@
 services:
   move-script:
-    # build: .  # 告诉 Docker 在当前目录寻找 Dockerfile 进行构建
     image: bililive_moveflv
     restart: always
     ports:
       - "5000:5000"
     volumes:
-      - C:/Users/sss/Videos/bili:/rec
-      - C:/Users/sss/Videos/test:/live_archive
+      - C:/Users/sss/Videos/bililive:/rec             # 录播文件夹
+      - C:/Users/sss/Videos/move_here:/live_archive   # 归档文件夹：结束后移动到这

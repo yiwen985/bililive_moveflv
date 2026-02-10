@@ -1,5 +1,5 @@
 FROM python:3.9-slim
-RUN pip install flask
+RUN pip install --no-cache-dir flask
 RUN mkdir /live_archive
 # 创建程序工作目录
 WORKDIR /app

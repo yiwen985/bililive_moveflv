@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import shutil
 import logging
 import sys
@@ -50,21 +51,32 @@ def cleanup_empty_dirs(root_path):
 
 def async_move_file(rel_path):
     """异步执行移动操作的函数"""
-    src_path = os.path.join(SOURCE_BASE, rel_path)
-    dst_path = os.path.join(TARGET_BASE, rel_path)
+    p = Path(rel_path)
+    src_file_path = Path(SOURCE_BASE) / p
+    stem = src_file_path.stem
+    src_dir = src_file_path.parent
+    dst_dir = Path(TARGET_BASE) / p.parent
 
     try:
-        if not os.path.exists(src_path):
-            logging.error(f"文件不存在，跳过: {src_path}")
-            return
+        dst_dir.mkdir(parents=True, exist_ok=True)
 
-        # 确保目标文件夹存在
-        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        files_moved_count = 0
+        for f_name in os.listdir(src_dir):
+            # 匹配逻辑：文件名包含 stem 且不是正在录制的临时文件 (.part)
+            # if stem in f_name and not f_name.endswith(".part"):
+            if stem in f_name:
+                s_path = src_dir / f_name
+                d_path = dst_dir / f_name
 
-        logging.info(f"开始异步移动: {rel_path}")
-        # 跨分区移动：实质上是 cp + rm
-        shutil.move(src_path, dst_path)
-        logging.info(f"移动完成: {rel_path}")
+                try:
+                    # 使用 shutil.move 处理跨文件系统移动
+                    shutil.move(str(s_path), str(d_path))
+                    logging.info(f"  -> 成功: {f_name}")
+                    files_moved_count += 1
+                except Exception as move_error:
+                    logging.error(f"  -> 失败: {f_name}, 错误: {move_error}")
+
+        logging.info(f"[任务结束] 关联文件处理完毕，共移动 {files_moved_count} 个文件")
 
         # --- 移动成功后，触发清理 ---
         cleanup_empty_dirs(SOURCE_BASE)
