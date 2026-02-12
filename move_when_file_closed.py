@@ -4,6 +4,7 @@ import shutil
 import logging
 import sys
 import threading
+import time
 from flask import Flask, request, jsonify
 
 # 配置日志
@@ -56,32 +57,40 @@ def async_move_file(rel_path):
     stem = src_file_path.stem
     src_dir = src_file_path.parent
     dst_dir = Path(TARGET_BASE) / p.parent
+    RETRY_AFTER_SECONDS = 5
 
-    try:
-        dst_dir.mkdir(parents=True, exist_ok=True)
+    while True:
+        try:
+            dst_dir.mkdir(parents=True, exist_ok=True)
 
-        files_moved_count = 0
-        for f_name in os.listdir(src_dir):
-            # 匹配逻辑：文件名包含 stem 且不是正在录制的临时文件 (.part)
-            # if stem in f_name and not f_name.endswith(".part"):
-            if stem in f_name:
-                s_path = src_dir / f_name
-                d_path = dst_dir / f_name
+            files_moved_count = 0
+            for f_name in os.listdir(src_dir):
+                # 匹配逻辑：文件名包含 stem 且不是正在录制的临时文件 (.part)
+                # if stem in f_name and not f_name.endswith(".part"):
+                if stem in f_name:
+                    s_path = src_dir / f_name
+                    d_path = dst_dir / f_name
 
-                try:
-                    # 使用 shutil.move 处理跨文件系统移动
-                    shutil.move(str(s_path), str(d_path))
-                    logging.info(f"  -> 成功: {f_name}")
-                    files_moved_count += 1
-                except Exception as move_error:
-                    logging.error(f"  -> 失败: {f_name}, 错误: {move_error}")
+                    try:
+                        # 使用 shutil.move 处理跨文件系统移动
+                        shutil.move(str(s_path), str(d_path))
+                        logging.info(f"  -> 成功: {f_name}")
+                        files_moved_count += 1
+                    except Exception as move_error:
+                        logging.error(f"  -> 失败: {f_name}, 错误: {move_error}")
 
-        logging.info(f"[任务结束] 关联文件处理完毕，共移动 {files_moved_count} 个文件")
+            logging.info(
+                f"[任务结束] 关联文件处理完毕，共移动 {files_moved_count} 个文件"
+            )
 
-        # --- 移动成功后，触发清理 ---
-        cleanup_empty_dirs(SOURCE_BASE)
-    except Exception as e:
-        logging.error(f"异步移动异常 ({rel_path}): {str(e)}")
+            # --- 移动成功后，触发清理 ---
+            cleanup_empty_dirs(SOURCE_BASE)
+            break
+        except Exception as e:
+            logging.error(
+                f"异步移动异常 ({rel_path}): {str(e)}，{RETRY_AFTER_SECONDS} 后重试"
+            )
+            time.sleep(5)  # 等待5秒后重试
 
 
 @app.route("/webhook", methods=["POST"])
