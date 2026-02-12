@@ -1,9 +1,10 @@
 services:
+  recorder: # 录播姬
+    image: bililive/recorder:latest
+    # ……
   move-script:
     image: bililive_moveflv
-    restart: always
-    ports:
-      - "5000:5000"
+    restart: unless-stopped
     volumes:
       - C:/Users/sss/Videos/bililive:/rec             # 录播文件夹
       - C:/Users/sss/Videos/move_here:/live_archive   # 归档文件夹：结束后移动到这
